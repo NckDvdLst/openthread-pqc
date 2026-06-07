@@ -107,8 +107,6 @@ Error SecureSession::Connect(const Ip6::SockAddr &aSockAddr)
 {
     Error error;
 
-    LogWarn("Versuche Verbindung zu starten");
-
     VerifyOrExit(mTransport.mIsOpen, error = kErrorInvalidState);
     VerifyOrExit(!IsSessionInUse(), error = kErrorInvalidState);
 
@@ -126,7 +124,6 @@ exit:
 
 void SecureSession::Accept(Message &aMessage, const Ip6::MessageInfo &aMessageInfo)
 {
-    LogWarn("Aufbauwunsch fuer sichere Sitzung empfangen");
     mMessageInfo.SetPeerAddr(aMessageInfo.GetPeerAddr());
     mMessageInfo.SetPeerPort(aMessageInfo.GetPeerPort());
     mMessageInfo.SetIsHostInterface(aMessageInfo.IsHostInterface());
@@ -143,7 +140,6 @@ void SecureSession::Accept(Message &aMessage, const Ip6::MessageInfo &aMessageIn
 
 void SecureSession::HandleTransportReceive(Message &aMessage)
 {
-    LogWarn("Handler für Empfang sicherer Nachricht aufgerufen");
     VerifyOrExit(!IsDisconnected());
 
 #ifdef MBEDTLS_SSL_SRV_C
@@ -163,7 +159,6 @@ exit:
 
 Error SecureSession::Setup(void)
 {
-    LogWarn("Setze Sichere Sitzung auf");
     Error error = kErrorNone;
     int   rval  = 0;
 
@@ -336,7 +331,7 @@ Error SecureSession::Setup(void)
     mMessageSubType = Message::kSubTypeNone;
 
     SetState(kStateConnecting);
-    LogWarn("Aufsetzen erfolgreich, gehe ueber zu Prozessieren");
+
     Process();
 
 exit:
@@ -354,7 +349,6 @@ exit:
 
 void SecureSession::Disconnect(ConnectEvent aEvent)
 {
-    LogWarn("Befehl zum Trennen der Sitzung");
     VerifyOrExit(mTransport.mIsOpen);
     VerifyOrExit(IsConnectingOrConnected());
 
@@ -374,7 +368,6 @@ exit:
 
 Error SecureSession::Send(Message &aMessage)
 {
-    LogWarn("Sende Nachricht mittels sicherer Sitzung");
     Error    error  = kErrorNone;
     uint16_t length = aMessage.GetLength();
     uint8_t  buffer[kApplicationDataMaxLength];
@@ -409,7 +402,6 @@ int SecureSession::HandleMbedtlsTransmit(void *aContext, const unsigned char *aB
 
 int SecureSession::HandleMbedtlsTransmit(const unsigned char *aBuf, size_t aLength)
 {
-    LogWarn("HandleMbedtlsTransmit");
     Message::SubType msgSubType = mMessageSubType;
 
     mMessageSubType = Message::kSubTypeNone;
@@ -424,7 +416,6 @@ int SecureSession::HandleMbedtlsReceive(void *aContext, unsigned char *aBuf, siz
 
 int SecureSession::HandleMbedtlsReceive(unsigned char *aBuf, size_t aLength)
 {
-    LogWarn("HandleMbedtlsReceive");
     int      rval = MBEDTLS_ERR_SSL_WANT_READ;
     uint16_t readLength;
 
@@ -447,7 +438,6 @@ int SecureSession::HandleMbedtlsGetTimer(void *aContext)
 
 int SecureSession::HandleMbedtlsGetTimer(void)
 {
-    LogWarn("HandleMbedtlsGetTimer");
     int rval = 0;
 
     // `mbedtls_ssl_get_timer_t` return values:
@@ -484,7 +474,6 @@ void SecureSession::HandleMbedtlsSetTimer(void *aContext, uint32_t aIntermediate
 
 void SecureSession::HandleMbedtlsSetTimer(uint32_t aIntermediate, uint32_t aFinish)
 {
-    LogWarn("HandleMbedtlsSetTimer");
     if (aFinish == 0)
     {
         mTimerSet = false;
@@ -503,7 +492,6 @@ void SecureSession::HandleMbedtlsSetTimer(uint32_t aIntermediate, uint32_t aFini
 
 void SecureSession::HandleTimer(TimeMilli aNow)
 {
-    LogWarn("Behandle Timer");
     if (IsConnectingOrConnected())
     {
         VerifyOrExit(mTimerSet);
@@ -536,7 +524,6 @@ exit:
 
 void SecureSession::Process(void)
 {
-    LogWarn("Starte reguläre Prozeß-Funktion der sicheren Sitzung");
     uint8_t      buf[kMaxContentLen];
     int          rval;
     ConnectEvent disconnectEvent;
@@ -544,14 +531,9 @@ void SecureSession::Process(void)
 
     while (IsConnectingOrConnected())
     {
-        LogWarn("Schleifendurchlauf Process()");
         if (IsConnecting())
         {
-            LogWarn("Sitzung im Status Connecting");
-            LogWarn("SSL-Status vor Step: %i", mSsl.MBEDTLS_PRIVATE(state));
             rval = mbedtls_ssl_handshake(&mSsl);
-            LogWarn("Meldung SSL-Step: %i", rval);
-            LogWarn("SSL-Status nach Step: %i", mSsl.MBEDTLS_PRIVATE(state));
 
             if (IsMbedtlsHandshakeOver(&mSsl))
             {
@@ -562,7 +544,6 @@ void SecureSession::Process(void)
         }
         else
         {
-            LogWarn("Sitzung im Status Connected, Dauerschleife zu erwarten");
             rval = mbedtls_ssl_read(&mSsl, buf, sizeof(buf));
 
             if (rval > 0)
@@ -571,7 +552,6 @@ void SecureSession::Process(void)
                 continue;
             }
         }
-        LogWarn("SSL Step endete mit Meldung");
 
         // Check `rval` to determine if the connection should be
         // disconnected, reset, or if we should wait.
@@ -624,8 +604,7 @@ void SecureSession::Process(void)
         }
         else if (shouldReset)
         {
-            LogWarn("SecOps in Action");
-            LogWarn("Status SecOps: %i", mbedtls_ssl_session_reset(&mSsl));
+            mbedtls_ssl_session_reset(&mSsl);
 
             if (mTransport.mCipherSuite == SecureTransport::kEcjpakeWithAes128Ccm8)
             {
@@ -760,7 +739,6 @@ exit:
 
 void SecureTransport::HandleReceive(Message &aMessage, const Ip6::MessageInfo &aMessageInfo)
 {
-    LogWarn("Daemon gibt bekannt: Nachricht eingegangen");
     SecureSession *session;
 
     VerifyOrExit(mIsOpen);
@@ -892,12 +870,10 @@ int SecureTransport::Transmit(const unsigned char    *aBuf,
 
     if (UsesSocket())
     {
-        LogWarn("NACHRICHT WIRD UEBER SOCKET GESEDET");
         error = mSocket.SendTo(*message, aMessageInfo);
     }
     else
     {
-        LogWarn("NACHRICHT WIRD UEBER TRANSPORTCALLBACK GESENDET");
         error = mTransportCallback.Invoke(*message, aMessageInfo);
     }
 
@@ -1072,7 +1048,7 @@ void SecureTransport::HandleMbedtlsDebug(int aLevel, const char *aFile, int aLin
         break;
     }
 
-    LogWarn("[%u] %s", UsesSocket() ? mSocket.GetSockName().mPort : 0, aStr);
+    LogAt(logLevel, "[%u] %s", UsesSocket() ? mSocket.GetSockName().mPort : 0, aStr);
 
     OT_UNUSED_VARIABLE(aStr);
     OT_UNUSED_VARIABLE(aFile);
