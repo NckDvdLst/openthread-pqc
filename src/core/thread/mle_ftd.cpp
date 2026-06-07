@@ -1874,7 +1874,12 @@ Error Mle::ProcessAddressRegistrationTlv(RxInfo &aRxInfo, Child &aChild)
     {
         for (const Child::Ip6AddrEntry &addrEntry : aChild.GetIp6Addresses())
         {
-            if (addrEntry.IsMlrRegistered(aChild))
+            if (!addrEntry.IsMulticastLargerThanRealmLocal())
+            {
+                continue;
+            }
+
+            if (addrEntry.GetMlrState(aChild) == Mlr::kStateRegistered)
             {
                 IgnoreError(oldMlrRegisteredAddresses.PushBack(addrEntry));
             }

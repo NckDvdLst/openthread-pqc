@@ -342,6 +342,7 @@ static int CliUartOutput(void *aContext, const char *aFormat, va_list aArguments
                 else
                 {
                     // Flush did not succeed, so abandon buffered output.
+                    otLogWarnPlat("Failed to output CLI: %s", otThreadErrorToString(error));
                     break;
                 }
             }
